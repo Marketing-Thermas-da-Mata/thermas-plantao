@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Acompanhamento de Plantão - Thermas da Mata</title>
+    <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@400;500;600;700&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         * {
@@ -467,9 +468,26 @@
             <div id="secaoGestorLista" class="hidden">
                 <div class="header-actions">
                     <h2>📋 Plantões Criados</h2>
-                    <button class="action-button" style="width: auto; margin-top: 0;" onclick="mostrarFormGestor()">➕ Novo Plantão</button>
+                    <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                        <button class="action-button" style="width: auto; margin-top: 0; background: #5BC2E7;" onclick="mostrarDashboard()">📊 Resumo</button>
+                        <button class="action-button" style="width: auto; margin-top: 0;" onclick="mostrarFormGestor()">➕ Novo Plantão</button>
+                    </div>
                 </div>
                 <div class="plantoes-list" id="listaPlantoesGestor"></div>
+                
+                <!-- Seção de sincronização -->
+                <div style="margin-top: 20px; padding: 15px; background: #f0fff4; border-radius: 8px; border-left: 4px solid #00B140;">
+                    <div style="font-weight: 500; margin-bottom: 10px; font-size: 14px;">🔄 Sincronizar Dados</div>
+                    <p style="font-size: 12px; color: #666; margin-bottom: 10px;">Exporte seus dados para compartilhar entre navegadores ou dispositivos</p>
+                    <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                        <button class="action-button" style="width: auto; margin-top: 0; background: #00B140; padding: 8px 12px; font-size: 12px;" onclick="exportarDados()">📥 Exportar Dados</button>
+                        <label style="display: flex; align-items: center; gap: 8px; padding: 8px 12px; background: #FFB81C; color: #333; border-radius: 6px; cursor: pointer; font-weight: 500; font-size: 12px; border: none;">
+                            📤 Importar Dados
+                            <input type="file" accept=".json" onchange="importarDados(event)" style="display: none;">
+                        </label>
+                    </div>
+                </div>
+                
                 <button class="logout-button" onclick="logout()">Sair</button>
             </div>
 
@@ -653,7 +671,27 @@
                             <option value="nao">Não</option>
                         </select>
                     </div>
+                    <div class="form-group" id="grupoClientContact" style="display: none;">
+                        <label>Descreva as dúvidas/problemas reportados</label>
+                        <textarea id="clientContactText" placeholder="Descreva detalhadamente o que os clientes reportaram..."></textarea>
+                    </div>
+                    <div class="form-group" id="grupoImagensClientContact" style="display: none;">
+                        <label>📸 Anexar imagens (opcional)</label>
+                        <label style="display: flex; align-items: center; gap: 8px; padding: 10px 12px; background: #E6F1FB; color: #0C447C; border-radius: 6px; cursor: pointer; font-weight: 500; border: 1px solid #85B7EB;">
+                            📷 Adicionar Imagem
+                            <input type="file" accept="image/*" onchange="uploadImagem('clientContact', event)" style="display: none;">
+                        </label>
+                        <div id="imagens-clientContact" style="margin-top: 10px;"></div>
+                    </div>
                 </div>
+
+                <script>
+                    document.getElementById('clientContact').addEventListener('change', function() {
+                        const mostrar = this.value === 'sim';
+                        document.getElementById('grupoClientContact').style.display = mostrar ? 'block' : 'none';
+                        document.getElementById('grupoImagensClientContact').style.display = mostrar ? 'block' : 'none';
+                    });
+                </script>
 
                 <div class="form-section">
                     <h2>🚶 Foram observadas filas?</h2>
@@ -664,33 +702,62 @@
                             <option value="nao">Não</option>
                         </select>
                     </div>
+                    <div class="form-group" id="grupoFilas" style="display: none;">
+                        <label>Justifique: Onde e em que momento?</label>
+                        <textarea id="filasText" placeholder="Descreva em quais locais foram observadas filas, em que horário e qual era o tamanho aproximado..."></textarea>
+                    </div>
                 </div>
+
+                <script>
+                    document.getElementById('filas').addEventListener('change', function() {
+                        document.getElementById('grupoFilas').style.display = this.value === 'sim' ? 'block' : 'none';
+                    });
+                </script>
 
                 <div class="form-section">
                     <h2>🏷️ Status das Sinalizações</h2>
                     <div class="form-group">
-                        <label>Havia problemas com sinalizações?</label>
+                        <label>Danificadas ou faltando?</label>
                         <select id="sinalizacoes">
-                            <option value="">Selecione...</option>
-                            <option value="comentada">Comentadas/Danificadas</option>
-                            <option value="normal">Normais</option>
-                        </select>
-                    </div>
-
-                    <div class="form-group">
-                        <label>Sinalizações faltando ou danificadas?</label>
-                        <select id="sinalizacaoFaltando">
                             <option value="">Selecione...</option>
                             <option value="sim">Sim</option>
                             <option value="nao">Não</option>
                         </select>
                     </div>
+                    <div class="form-group" id="grupoSinalizacoes" style="display: none;">
+                        <label>Descreva quais sinalizações estão danificadas ou faltando</label>
+                        <textarea id="sinalizacoesText" placeholder="Descreva detalhadamente os problemas com as sinalizações..."></textarea>
+                    </div>
+                    <div class="form-group" id="grupoImagensSinalizacoes" style="display: none;">
+                        <label>📸 Anexar imagens (opcional)</label>
+                        <label style="display: flex; align-items: center; gap: 8px; padding: 10px 12px; background: #E6F1FB; color: #0C447C; border-radius: 6px; cursor: pointer; font-weight: 500; border: 1px solid #85B7EB;">
+                            📷 Adicionar Imagem
+                            <input type="file" accept="image/*" onchange="uploadImagem('sinalizacoes', event)" style="display: none;">
+                        </label>
+                        <div id="imagens-sinalizacoes" style="margin-top: 10px;"></div>
+                    </div>
                 </div>
+
+                <script>
+                    document.getElementById('sinalizacoes').addEventListener('change', function() {
+                        const mostrar = this.value === 'sim';
+                        document.getElementById('grupoSinalizacoes').style.display = mostrar ? 'block' : 'none';
+                        document.getElementById('grupoImagensSinalizacoes').style.display = mostrar ? 'block' : 'none';
+                    });
+                </script>
 
                 <div class="form-section">
                     <h2>💡 Melhorias Sugeridas</h2>
                     <div class="form-group">
                         <textarea id="melhorias" placeholder="Descreva qualquer melhoria sugerida..."></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label>📸 Anexar imagens das áreas para melhorar</label>
+                        <label style="display: flex; align-items: center; gap: 8px; padding: 10px 12px; background: #E6F1FB; color: #0C447C; border-radius: 6px; cursor: pointer; font-weight: 500; border: 1px solid #85B7EB;">
+                            📷 Adicionar Imagem
+                            <input type="file" accept="image/*" onchange="uploadImagem('melhorias', event)" style="display: none;">
+                        </label>
+                        <div id="imagens-melhorias" style="margin-top: 10px;"></div>
                     </div>
                 </div>
 
@@ -710,29 +777,59 @@
         let tasks = [];
         let currentRole = null;
         let currentPlantaoId = null;
+        let currentPlantaoImages = {};
         let graficoLotacaoInstance = null;
+        
+        // ===== FIREBASE CONFIGURAÇÃO =====
+        const firebaseConfig = {
+            apiKey: "AIzaSyA-zD0zZvS6Jw7VpxbxvpxY9Sbl6w2L-nI",
+            authDomain: "thermas-plantao-966f2.firebaseapp.com",
+            databaseURL: "https://thermas-plantao-966f2-default-rtdb.firebaseio.com",
+            projectId: "thermas-plantao-966f2",
+            storageBucket: "thermas-plantao-966f2.firebasestorage.app",
+            messagingSenderId: "256028762568",
+            appId: "1:256028762568:web:60bdec2b8bef5a21e4a0fd"
+        };
+        
+        let firebaseInitialized = false;
+        let db = null;
 
         function selectRole(role) {
             currentRole = role;
             document.getElementById('roleSelection').classList.add('hidden');
             
-            if (role === 'gestor') {
-                document.getElementById('secaoGestorLista').classList.remove('hidden');
-                renderPlantoesList();
-            } else {
-                document.getElementById('secaoPlantonistLista').classList.remove('hidden');
-                renderPlantoesFuturas();
-                fetchClima();
-            }
-        }
-
-        function loadPlantoes() {
-            const saved = localStorage.getItem('plantoes');
-            plantoes = saved ? JSON.parse(saved) : [];
-        }
-
-        function savePlantoes() {
-            localStorage.setItem('plantoes', JSON.stringify(plantoes));
+            // Esconder todas as outras seções
+            document.getElementById('secaoGestorLista').classList.add('hidden');
+            document.getElementById('secaoGestorForm').classList.add('hidden');
+            document.getElementById('secaoGestorVisualizar').classList.add('hidden');
+            document.getElementById('secaoGestorResumo').classList.add('hidden');
+            document.getElementById('secaoPlantonistLista').classList.add('hidden');
+            document.getElementById('secaoPlantonistForm').classList.add('hidden');
+            
+            // Inicializar Firebase e carregar dados
+            initializeFirebase().then(() => {
+                loadPlantoes().then(() => {
+                    if (role === 'gestor') {
+                        document.getElementById('secaoGestorLista').classList.remove('hidden');
+                        renderPlantoesList();
+                    } else {
+                        document.getElementById('secaoPlantonistLista').classList.remove('hidden');
+                        renderPlantoesFuturas();
+                        fetchClima();
+                    }
+                });
+            }).catch((error) => {
+                console.error('Erro ao inicializar:', error);
+                // Fallback - continua mesmo se Firebase falhar
+                if (role === 'gestor') {
+                    document.getElementById('secaoGestorLista').classList.remove('hidden');
+                    renderPlantoesList();
+                } else {
+                    document.getElementById('secaoPlantonistLista').classList.remove('hidden');
+                    renderPlantoesFuturas();
+                    fetchClima();
+                }
+            });
         }
 
         function renderPlantoesList() {
@@ -781,6 +878,15 @@
             renderTasks();
         }
 
+        function mostrarDashboard() {
+            document.getElementById('secaoGestorLista').classList.add('hidden');
+            document.getElementById('secaoGestorResumo').classList.remove('hidden');
+            // Limpar os campos de data ao abrir
+            document.getElementById('dataInicialResumo').value = '';
+            document.getElementById('dataFinalResumo').value = '';
+            document.getElementById('resumoContainer').textContent = 'Selecione o período para gerar o resumo.';
+        }
+
         function editarPlantao(id) {
             currentPlantaoId = id;
             const plantao = plantoes.find(p => p.id === id);
@@ -799,6 +905,22 @@
             const plantao = plantoes.find(p => p.id === id);
             if (plantao) {
                 const obs = plantao.observacoes || {};
+                const imagens = plantao.imagens || {};
+                
+                const renderImagensSecao = (fieldName, titulo) => {
+                    if (!imagens[fieldName] || imagens[fieldName].length === 0) return '';
+                    return `
+                        <div class="form-section">
+                            <h3 style="font-size: 14px; margin-bottom: 10px;">📸 ${titulo}</h3>
+                            <div style="display: flex; flex-wrap: wrap; gap: 10px;">
+                                ${imagens[fieldName].map(img => `
+                                    <img src="${img.data}" style="width: 100px; height: 100px; object-fit: cover; border-radius: 8px; cursor: pointer;" onclick="visualizarImagemFull('${img.id}', '${fieldName}')">
+                                `).join('')}
+                            </div>
+                        </div>
+                    `;
+                };
+                
                 const html = `
                     <div class="form-section">
                         <h2>📅 Data: ${new Date(plantao.data).toLocaleDateString('pt-BR')}</h2>
@@ -819,8 +941,13 @@
                     </div>
 
                     ${obs.parkCrowded ? `<div class="form-section"><strong>🎢 Lotação:</strong> ${obs.parkCrowded}</div>` : ''}
-                    ${obs.clientContact ? `<div class="form-section"><strong>👥 Contato com Clientes:</strong> ${obs.clientContact}</div>` : ''}
+                    ${obs.clientContact ? `<div class="form-section"><strong>👥 Contato com Clientes:</strong> ${obs.clientContact}${obs.clientContactText ? `<br><div style="margin-top: 8px; padding: 10px; background: #f5f5f5; border-radius: 6px; font-size: 13px; white-space: pre-wrap; word-break: break-word;">${obs.clientContactText}</div>` : ''}</div>` : ''}
+                    ${renderImagensSecao('clientContact', 'Fotos das dúvidas')}
+                    ${obs.filas ? `<div class="form-section"><strong>🚶 Filas Observadas:</strong> ${obs.filas}${obs.filasText ? `<br><div style="margin-top: 8px; padding: 10px; background: #f5f5f5; border-radius: 6px; font-size: 13px; white-space: pre-wrap; word-break: break-word;">${obs.filasText}</div>` : ''}</div>` : ''}
+                    ${obs.sinalizacoes ? `<div class="form-section"><strong>🏷️ Sinalizações:</strong> ${obs.sinalizacoes}${obs.sinalizacoesText ? `<br><div style="margin-top: 8px; padding: 10px; background: #f5f5f5; border-radius: 6px; font-size: 13px; white-space: pre-wrap; word-break: break-word;">${obs.sinalizacoesText}</div>` : ''}</div>` : ''}
+                    ${renderImagensSecao('sinalizacoes', 'Fotos das sinalizações')}
                     ${obs.melhorias ? `<div class="form-section"><strong>💡 Melhorias:</strong> ${obs.melhorias}</div>` : ''}
+                    ${renderImagensSecao('melhorias', 'Fotos das áreas para melhorar')}
                 `;
                 
                 document.getElementById('detalhesPlantoesGestor').innerHTML = html;
@@ -834,6 +961,8 @@
             const plantao = plantoes.find(p => p.id === id);
             if (plantao) {
                 tasks = JSON.parse(JSON.stringify(plantao.tarefas || []));
+                currentPlantaoImages = JSON.parse(JSON.stringify(plantao.imagens || {}));
+                
                 document.getElementById('secaoPlantonistLista').classList.add('hidden');
                 document.getElementById('secaoPlantonistForm').classList.remove('hidden');
                 
@@ -844,10 +973,26 @@
                 const obs = plantao.observacoes || {};
                 document.getElementById('parkCrowded').value = obs.parkCrowded || '';
                 document.getElementById('clientContact').value = obs.clientContact || '';
+                document.getElementById('clientContactText').value = obs.clientContactText || '';
                 document.getElementById('filas').value = obs.filas || '';
+                document.getElementById('filasText').value = obs.filasText || '';
                 document.getElementById('sinalizacoes').value = obs.sinalizacoes || '';
-                document.getElementById('sinalizacaoFaltando').value = obs.sinalizacaoFaltando || '';
+                document.getElementById('sinalizacoesText').value = obs.sinalizacoesText || '';
                 document.getElementById('melhorias').value = obs.melhorias || '';
+                
+                // Renderizar imagens existentes
+                if (currentPlantaoImages) {
+                    Object.keys(currentPlantaoImages).forEach(fieldName => {
+                        renderImagensCampo(fieldName);
+                    });
+                }
+                
+                // Mostrar/esconder grupos baseado nos valores
+                document.getElementById('grupoClientContact').style.display = obs.clientContact === 'sim' ? 'block' : 'none';
+                document.getElementById('grupoImagensClientContact').style.display = obs.clientContact === 'sim' ? 'block' : 'none';
+                document.getElementById('grupoFilas').style.display = obs.filas === 'sim' ? 'block' : 'none';
+                document.getElementById('grupoSinalizacoes').style.display = obs.sinalizacoes === 'sim' ? 'block' : 'none';
+                document.getElementById('grupoImagensSinalizacoes').style.display = obs.sinalizacoes === 'sim' ? 'block' : 'none';
                 
                 renderTasks();
                 fetchClima();
@@ -870,15 +1015,14 @@
                 return;
             }
 
-            let duvidaClientes = 0, filas = 0, sinalizacoes = 0, sinalizacoesFaltando = 0;
+            let duvidaClientes = 0, filas = 0, sinalizacoes = 0;
             const lotacao = { vazio: 0, normal: 0, cheio: 0 };
 
             plantoesFiltrados.forEach(p => {
                 const obs = p.observacoes || {};
                 if (obs.clientContact === 'sim') duvidaClientes++;
                 if (obs.filas === 'sim') filas++;
-                if (obs.sinalizacoes === 'comentada') sinalizacoes++;
-                if (obs.sinalizacaoFaltando === 'sim') sinalizacoesFaltando++;
+                if (obs.sinalizacoes === 'sim') sinalizacoes++;
                 
                 const lot = obs.parkCrowded;
                 if (lot === 'vazio') lotacao.vazio++;
@@ -909,12 +1053,11 @@
 • Filas observadas: ${filas} plantões
 
 <strong>🏷️ Sinalizações:</strong>
-• Sinalizações comentadas: ${sinalizacoes} plantões
-• Sinalizações faltando/danificadas: ${sinalizacoesFaltando} plantões
+• Sinalizações danificadas ou faltando: ${sinalizacoes} plantões
 
 <strong>💡 Insights:</strong>
 ${lotacao.cheio > plantoesFiltrados.length * 0.5 ? '• O parque esteve cheio em mais de 50% dos dias - considere aumentar staff' : '• Lotação bem distribuída entre os períodos'}
-${sinalizacoesFaltando > 0 ? `• ${sinalizacoesFaltando} plantões reportaram sinalizações faltando - ação urgente recomendada` : '• Sinalizações estão em bom estado'}
+${sinalizacoes > 0 ? `• ${sinalizacoes} plantões reportaram sinalizações danificadas ou faltando - ação urgente recomendada` : '• Sinalizações estão em bom estado'}
 ${duvidaClientes > plantoesFiltrados.length * 0.5 ? '• Alto volume de dúvidas de clientes - revisar treinamento da equipe' : '• Nível de dúvidas dentro do esperado'}
 
 <strong>✅ Recomendações:</strong>
@@ -967,11 +1110,104 @@ ${duvidaClientes > plantoesFiltrados.length * 0.5 ? '• Alto volume de dúvidas
             }
         }
 
+        // ===== FUNÇÕES FIREBASE =====
+        function initializeFirebase() {
+            if (firebaseInitialized) return Promise.resolve();
+            
+            return new Promise((resolve) => {
+                // Espera Firebase estar disponível
+                const checkFirebase = setInterval(() => {
+                    if (typeof firebase !== 'undefined') {
+                        clearInterval(checkFirebase);
+                        
+                        firebase.initializeApp(firebaseConfig);
+                        db = firebase.database();
+                        firebaseInitialized = true;
+                        
+                        console.log('✅ Firebase inicializado!');
+                        setupRealtimeListener();
+                        resolve();
+                    }
+                }, 100);
+            });
+        }
+        
+        function setupRealtimeListener() {
+            if (!db) return;
+            
+            // Listener em tempo real para plantões
+            db.ref('plantoes').on('value', (snapshot) => {
+                const data = snapshot.val();
+                if (data) {
+                    plantoes = Object.values(data);
+                    console.log('📊 Plantões sincronizados:', plantoes.length);
+                    
+                    // Atualizar UI se necessário
+                    if (currentRole === 'gestor') {
+                        renderPlantoes();
+                    } else if (currentRole === 'plantonista') {
+                        renderListaPlantoes();
+                    }
+                }
+            });
+        }
+        
+        function savePlantoes() {
+            if (!db || !firebaseInitialized) {
+                // Fallback para localStorage se Firebase não estiver pronto
+                localStorage.setItem('plantoes', JSON.stringify(plantoes));
+                return;
+            }
+            
+            // Preparar dados para Firebase
+            const plantoesPorId = {};
+            plantoes.forEach(p => {
+                plantoesPorId[p.id] = p;
+            });
+            
+            db.ref('plantoes').set(plantoesPorId, (error) => {
+                if (error) {
+                    console.error('❌ Erro ao salvar no Firebase:', error);
+                    // Fallback para localStorage
+                    localStorage.setItem('plantoes', JSON.stringify(plantoes));
+                } else {
+                    console.log('✅ Plantões salvos no Firebase!');
+                }
+            });
+        }
+        
+        function loadPlantoes() {
+            if (!db || !firebaseInitialized) {
+                // Fallback para localStorage
+                const dados = localStorage.getItem('plantoes');
+                if (dados) {
+                    plantoes = JSON.parse(dados);
+                }
+                return Promise.resolve();
+            }
+            
+            return new Promise((resolve) => {
+                db.ref('plantoes').once('value', (snapshot) => {
+                    const data = snapshot.val();
+                    if (data) {
+                        plantoes = Object.values(data);
+                        console.log('📊 Plantões carregados:', plantoes.length);
+                    }
+                    resolve();
+                });
+            });
+        }
+
         function logout() {
             currentRole = null;
-            document.querySelectorAll('.hidden').forEach(el => {
-                if (el.id !== 'roleSelection') el.classList.add('hidden');
-            });
+            // Esconder TODAS as seções
+            document.getElementById('secaoGestorLista').classList.add('hidden');
+            document.getElementById('secaoGestorForm').classList.add('hidden');
+            document.getElementById('secaoGestorVisualizar').classList.add('hidden');
+            document.getElementById('secaoGestorResumo').classList.add('hidden');
+            document.getElementById('secaoPlantonistLista').classList.add('hidden');
+            document.getElementById('secaoPlantonistForm').classList.add('hidden');
+            // Mostrar apenas seleção de papel
             document.getElementById('roleSelection').classList.remove('hidden');
         }
 
@@ -1118,11 +1354,17 @@ ${duvidaClientes > plantoesFiltrados.length * 0.5 ? '• Alto volume de dúvidas
                 plantao.observacoes = {
                     parkCrowded: document.getElementById('parkCrowded').value,
                     clientContact: document.getElementById('clientContact').value,
+                    clientContactText: document.getElementById('clientContactText')?.value || '',
                     filas: document.getElementById('filas').value,
+                    filasText: document.getElementById('filasText')?.value || '',
                     sinalizacoes: document.getElementById('sinalizacoes').value,
-                    sinalizacaoFaltando: document.getElementById('sinalizacaoFaltando').value,
+                    sinalizacoesText: document.getElementById('sinalizacoesText')?.value || '',
                     melhorias: document.getElementById('melhorias').value
                 };
+                // Salvar imagens
+                if (currentPlantaoImages && Object.keys(currentPlantaoImages).length > 0) {
+                    plantao.imagens = currentPlantaoImages;
+                }
             }
 
             savePlantoes();
@@ -1130,13 +1372,163 @@ ${duvidaClientes > plantoesFiltrados.length * 0.5 ? '• Alto volume de dúvidas
             setTimeout(() => voltarParaLista('plantonista'), 1500);
         }
 
-        function mostrarSucesso(id) {
-            const msg = document.getElementById(id);
-            msg.classList.add('show');
-            setTimeout(() => msg.classList.remove('show'), 3000);
+        function exportarDados() {
+            const dados = {
+                plantoes: plantoes,
+                tasks: tasks,
+                dataExportacao: new Date().toLocaleString('pt-BR'),
+                versao: '2.1'
+            };
+            
+            const json = JSON.stringify(dados, null, 2);
+            const blob = new Blob([json], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `plantoes-${new Date().toISOString().split('T')[0]}.json`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            
+            mostrarAviso('✅ Dados exportados com sucesso!', 'success');
         }
 
-        loadPlantoes();
+        function importarDados(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const dados = JSON.parse(e.target.result);
+                    
+                    if (!dados.plantoes || !Array.isArray(dados.plantoes)) {
+                        throw new Error('Formato inválido');
+                    }
+                    
+                    plantoes = dados.plantoes;
+                    tasks = dados.tasks || [];
+                    savePlantoes();
+                    
+                    mostrarAviso('✅ Dados importados com sucesso! Atualize a página.', 'success');
+                    
+                    setTimeout(() => location.reload(), 2000);
+                } catch (err) {
+                    mostrarAviso('❌ Erro ao importar: ' + err.message, 'error');
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        function uploadImagem(fieldName, event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            // Validar tipo de arquivo
+            if (!file.type.startsWith('image/')) {
+                mostrarAviso('❌ Selecione um arquivo de imagem', 'error');
+                return;
+            }
+
+            // Validar tamanho (máx 5MB)
+            if (file.size > 5 * 1024 * 1024) {
+                mostrarAviso('❌ Imagem muito grande (máx 5MB)', 'error');
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const base64 = e.target.result;
+                
+                if (!currentPlantaoImages) currentPlantaoImages = {};
+                if (!currentPlantaoImages[fieldName]) currentPlantaoImages[fieldName] = [];
+                
+                currentPlantaoImages[fieldName].push({
+                    id: Date.now(),
+                    data: base64,
+                    nome: file.name
+                });
+
+                renderImagensCampo(fieldName);
+                event.target.value = ''; // Limpar input para permitir mesmo arquivo novamente
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function renderImagensCampo(fieldName) {
+            const container = document.getElementById(`imagens-${fieldName}`);
+            if (!container) return;
+
+            if (!currentPlantaoImages || !currentPlantaoImages[fieldName] || currentPlantaoImages[fieldName].length === 0) {
+                container.innerHTML = '';
+                return;
+            }
+
+            const html = currentPlantaoImages[fieldName].map(img => `
+                <div style="position: relative; display: inline-block; margin: 8px; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+                    <img src="${img.data}" style="width: 120px; height: 120px; object-fit: cover; cursor: pointer;" onclick="visualizarImagemFull('${img.id}', '${fieldName}')">
+                    <button onclick="deletarImagem('${fieldName}', ${img.id})" style="position: absolute; top: 4px; right: 4px; background: #ff4757; color: white; border: none; border-radius: 50%; width: 28px; height: 28px; cursor: pointer; font-weight: bold; font-size: 16px; padding: 0; display: flex; align-items: center; justify-content: center;">×</button>
+                </div>
+            `).join('');
+
+            container.innerHTML = html;
+        }
+
+        function deletarImagem(fieldName, imageId) {
+            if (currentPlantaoImages && currentPlantaoImages[fieldName]) {
+                currentPlantaoImages[fieldName] = currentPlantaoImages[fieldName].filter(img => img.id !== imageId);
+                renderImagensCampo(fieldName);
+            }
+        }
+
+        function visualizarImagemFull(imageId, fieldName) {
+            if (!currentPlantaoImages || !currentPlantaoImages[fieldName]) return;
+            
+            const imagem = currentPlantaoImages[fieldName].find(img => img.id == imageId);
+            if (!imagem) return;
+
+            const modal = document.createElement('div');
+            modal.style.cssText = `
+                position: fixed;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                background: rgba(0,0,0,0.9);
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                z-index: 10000;
+                cursor: pointer;
+            `;
+            modal.innerHTML = `
+                <div style="position: relative; max-width: 90%; max-height: 90%;">
+                    <img src="${imagem.data}" style="max-width: 100%; max-height: 100%;">
+                    <button onclick="this.parentElement.parentElement.remove()" style="position: absolute; top: 10px; right: 10px; background: #ff4757; color: white; border: none; border-radius: 50%; width: 40px; height: 40px; cursor: pointer; font-size: 24px; font-weight: bold; padding: 0; display: flex; align-items: center; justify-content: center;">×</button>
+                </div>
+            `;
+            modal.onclick = (e) => {
+                if (e.target === modal) modal.remove();
+            };
+            document.body.appendChild(modal);
+        }
+
+        function salvarImagensPlantao() {
+            const plantao = plantoes.find(p => p.id === currentPlantaoId);
+            if (plantao && currentPlantaoImages) {
+                plantao.imagens = currentPlantaoImages;
+            }
+        }
+
+        // ===== INICIALIZAR FIREBASE =====
+        initializeFirebase().then(() => {
+            loadPlantoes();
+        }).catch((error) => {
+            console.error('❌ Erro ao inicializar Firebase:', error);
+            // Fallback para localStorage
+            loadPlantoes();
+        });
 
         document.getElementById('nomeTarefa').addEventListener('keypress', e => {
             if (e.key === 'Enter') addTask();
@@ -1146,5 +1538,10 @@ ${duvidaClientes > plantoesFiltrados.length * 0.5 ? '• Alto volume de dúvidas
             updateWeekday('Gestor');
         });
     </script>
+
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-database.js"></script>
 </body>
 </html>
+Firebase integrado - V2.4
