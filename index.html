@@ -806,30 +806,43 @@
             document.getElementById('secaoPlantonistLista').classList.add('hidden');
             document.getElementById('secaoPlantonistForm').classList.add('hidden');
             
+            // Mostrar a seção imediatamente (não esperar Firebase)
+            if (role === 'gestor') {
+                document.getElementById('secaoGestorLista').classList.remove('hidden');
+            } else {
+                document.getElementById('secaoPlantonistLista').classList.remove('hidden');
+                fetchClima();
+            }
+            
             // Inicializar Firebase e carregar dados
-            initializeFirebase().then(() => {
-                loadPlantoes().then(() => {
+            initializeFirebase()
+                .then(() => loadPlantoes())
+                .then(() => {
+                    // Renderizar quando dados carregarem
                     if (role === 'gestor') {
-                        document.getElementById('secaoGestorLista').classList.remove('hidden');
                         renderPlantoesList();
                     } else {
-                        document.getElementById('secaoPlantonistLista').classList.remove('hidden');
                         renderPlantoesFuturas();
-                        fetchClima();
+                    }
+                    console.log('✅ Dados carregados e renderizados!');
+                })
+                .catch((error) => {
+                    console.error('⚠️ Firebase erro, mas continuando com localStorage:', error);
+                    // Fallback - tenta localStorage
+                    const saved = localStorage.getItem('plantoes');
+                    if (saved) {
+                        plantoes = JSON.parse(saved);
+                        console.log('📦 Usando dados do localStorage');
+                        
+                        if (role === 'gestor') {
+                            renderPlantoesList();
+                        } else {
+                            renderPlantoesFuturas();
+                        }
+                    } else {
+                        console.log('ℹ️ Nenhum plantão salvo ainda');
                     }
                 });
-            }).catch((error) => {
-                console.error('Erro ao inicializar:', error);
-                // Fallback - continua mesmo se Firebase falhar
-                if (role === 'gestor') {
-                    document.getElementById('secaoGestorLista').classList.remove('hidden');
-                    renderPlantoesList();
-                } else {
-                    document.getElementById('secaoPlantonistLista').classList.remove('hidden');
-                    renderPlantoesFuturas();
-                    fetchClima();
-                }
-            });
         }
 
         function renderPlantoesList() {
@@ -1114,19 +1127,29 @@ ${duvidaClientes > plantoesFiltrados.length * 0.5 ? '• Alto volume de dúvidas
         function initializeFirebase() {
             if (firebaseInitialized) return Promise.resolve();
             
-            return new Promise((resolve) => {
-                // Espera Firebase estar disponível
+            return new Promise((resolve, reject) => {
+                let timeout = 0;
                 const checkFirebase = setInterval(() => {
+                    timeout++;
                     if (typeof firebase !== 'undefined') {
                         clearInterval(checkFirebase);
                         
-                        firebase.initializeApp(firebaseConfig);
-                        db = firebase.database();
-                        firebaseInitialized = true;
-                        
-                        console.log('✅ Firebase inicializado!');
-                        setupRealtimeListener();
-                        resolve();
+                        try {
+                            firebase.initializeApp(firebaseConfig);
+                            db = firebase.database();
+                            firebaseInitialized = true;
+                            
+                            console.log('✅ Firebase inicializado!');
+                            setupRealtimeListener();
+                            resolve();
+                        } catch (error) {
+                            console.error('❌ Erro ao inicializar Firebase:', error);
+                            reject(error);
+                        }
+                    } else if (timeout > 50) { // 5 segundos de timeout
+                        clearInterval(checkFirebase);
+                        console.warn('⚠️ Firebase não carregou no tempo esperado, usando localStorage');
+                        reject(new Error('Firebase timeout'));
                     }
                 }, 100);
             });
@@ -1144,9 +1167,9 @@ ${duvidaClientes > plantoesFiltrados.length * 0.5 ? '• Alto volume de dúvidas
                     
                     // Atualizar UI se necessário
                     if (currentRole === 'gestor') {
-                        renderPlantoes();
+                        renderPlantoesList();
                     } else if (currentRole === 'plantonista') {
-                        renderListaPlantoes();
+                        renderPlantoesFuturas();
                     }
                 }
             });
@@ -1544,4 +1567,3 @@ ${duvidaClientes > plantoesFiltrados.length * 0.5 ? '• Alto volume de dúvidas
     <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-database.js"></script>
 </body>
 </html>
-Firebase integrado - V2.4
