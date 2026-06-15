@@ -1125,7 +1125,16 @@ ${duvidaClientes > plantoesFiltrados.length * 0.5 ? '• Alto volume de dúvidas
             }
         }
 
-        // ===== FUNÇÃO PARA CAPITALIZAR =====
+        // ===== DEBOUNCE PARA OTIMIZAR FIREBASE =====
+        let saveTimeout = null;
+        const SAVE_DELAY = 1000; // 1 segundo
+        
+        function debouncedSavePlantoes() {
+            clearTimeout(saveTimeout);
+            saveTimeout = setTimeout(() => {
+                savePlantoes();
+            }, SAVE_DELAY);
+        }
         function capitalizarPrimeira(text) {
             if (!text) return '';
             return text.charAt(0).toUpperCase() + text.slice(1);
@@ -1209,24 +1218,34 @@ ${duvidaClientes > plantoesFiltrados.length * 0.5 ? '• Alto volume de dúvidas
         function setupRealtimeListener() {
             if (!db) return;
             
+            console.log('🔄 Configurando listener em tempo real...');
+            
             // Listener em tempo real para plantões
             db.ref('plantoes').on('value', (snapshot) => {
                 const data = snapshot.val();
                 if (data) {
-                    plantoes = Object.values(data);
-                    console.log('📊 Plantões sincronizados:', plantoes.length);
+                    const novosDados = Object.values(data);
                     
-                    // Atualizar UI se necessário
-                    if (currentRole === 'gestor') {
-                        renderPlantoesList();
-                    } else if (currentRole === 'plantonista') {
-                        renderPlantoesFuturas();
+                    // Só atualiza se houve mudança real
+                    if (JSON.stringify(plantoes) !== JSON.stringify(novosDados)) {
+                        plantoes = novosDados;
+                        console.log('📊 Plantões sincronizados:', plantoes.length);
+                        
+                        // Atualizar UI apenas se necessário
+                        if (currentRole === 'gestor') {
+                            renderPlantoesList();
+                        } else if (currentRole === 'plantonista') {
+                            renderPlantoesFuturas();
+                        }
                     }
                 }
+            }, (error) => {
+                console.error('⚠️ Erro no listener:', error);
             });
         }
         
         function savePlantoes() {
+            const inicio = performance.now();
             console.log('💾 Tentando salvar plantões...', plantoes.length, 'plantões');
             
             if (!db || !firebaseInitialized) {
@@ -1245,12 +1264,19 @@ ${duvidaClientes > plantoesFiltrados.length * 0.5 ? '• Alto volume de dúvidas
             
             // Preparar dados para Firebase
             const plantoesPorId = {};
+            let tamanhoTotal = 0;
+            
             plantoes.forEach(p => {
                 plantoesPorId[p.id] = p;
+                tamanhoTotal += JSON.stringify(p).length;
             });
             
-            console.log('📤 Enviando para Firebase...');
+            console.log(`📤 Enviando ${(tamanhoTotal / 1024).toFixed(2)}KB para Firebase...`);
+            
             db.ref('plantoes').set(plantoesPorId, (error) => {
+                const fim = performance.now();
+                const tempo = (fim - inicio).toFixed(0);
+                
                 if (error) {
                     console.error('❌ Erro ao salvar no Firebase:', error);
                     mostrarAviso('❌ Erro ao salvar: ' + error.message, 'error');
@@ -1263,8 +1289,7 @@ ${duvidaClientes > plantoesFiltrados.length * 0.5 ? '• Alto volume de dúvidas
                         console.error('❌ Erro no fallback localStorage:', e);
                     }
                 } else {
-                    console.log('✅ Plantões salvos no Firebase!');
-                    mostrarAviso('✅ Salvo com sucesso!', 'success');
+                    console.log(`✅ Plantões salvos no Firebase! (${tempo}ms)`);
                 }
             });
         }
@@ -1514,6 +1539,41 @@ ${duvidaClientes > plantoesFiltrados.length * 0.5 ? '• Alto volume de dúvidas
             reader.readAsText(file);
         }
 
+        function comprimirImagem(base64, callback) {
+            const img = new Image();
+            img.onload = function() {
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d');
+                
+                // Redimensionar para máximo 800x600
+                let width = img.width;
+                let height = img.height;
+                const maxWidth = 800;
+                const maxHeight = 600;
+                
+                if (width > height) {
+                    if (width > maxWidth) {
+                        height *= maxWidth / width;
+                        width = maxWidth;
+                    }
+                } else {
+                    if (height > maxHeight) {
+                        width *= maxHeight / height;
+                        height = maxHeight;
+                    }
+                }
+                
+                canvas.width = width;
+                canvas.height = height;
+                ctx.drawImage(img, 0, 0, width, height);
+                
+                // Converter para JPEG com qualidade reduzida (70%)
+                const comprimido = canvas.toDataURL('image/jpeg', 0.7);
+                callback(comprimido);
+            };
+            img.src = base64;
+        }
+
         function uploadImagem(fieldName, event) {
             const file = event.target.files[0];
             if (!file) return;
@@ -1532,19 +1592,29 @@ ${duvidaClientes > plantoesFiltrados.length * 0.5 ? '• Alto volume de dúvidas
 
             const reader = new FileReader();
             reader.onload = function(e) {
-                const base64 = e.target.result;
+                const base64Original = e.target.result;
                 
-                if (!currentPlantaoImages) currentPlantaoImages = {};
-                if (!currentPlantaoImages[fieldName]) currentPlantaoImages[fieldName] = [];
-                
-                currentPlantaoImages[fieldName].push({
-                    id: Date.now(),
-                    data: base64,
-                    nome: file.name
-                });
+                // Comprimir imagem
+                comprimirImagem(base64Original, function(base64Comprimido) {
+                    if (!currentPlantaoImages) currentPlantaoImages = {};
+                    if (!currentPlantaoImages[fieldName]) currentPlantaoImages[fieldName] = [];
+                    
+                    // Calcular redução de tamanho
+                    const tamanhoOriginal = base64Original.length;
+                    const tamanhoComprimido = base64Comprimido.length;
+                    const reducao = Math.round((1 - tamanhoComprimido / tamanhoOriginal) * 100);
+                    
+                    console.log(`📸 Imagem comprimida: ${reducao}% menor`);
+                    
+                    currentPlantaoImages[fieldName].push({
+                        id: Date.now(),
+                        data: base64Comprimido,
+                        nome: file.name
+                    });
 
-                renderImagensCampo(fieldName);
-                event.target.value = ''; // Limpar input para permitir mesmo arquivo novamente
+                    renderImagensCampo(fieldName);
+                    event.target.value = ''; // Limpar input
+                });
             };
             reader.readAsDataURL(file);
         }
