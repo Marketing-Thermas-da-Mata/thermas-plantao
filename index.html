@@ -1123,7 +1123,40 @@ ${duvidaClientes > plantoesFiltrados.length * 0.5 ? '• Alto volume de dúvidas
             }
         }
 
-        // ===== FUNÇÕES FIREBASE =====
+        // ===== FUNÇÕES DE MENSAGEM =====
+        function mostrarAviso(msg, tipo) {
+            const div = document.createElement('div');
+            div.textContent = msg;
+            div.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                background: ${tipo === 'success' ? '#00B140' : '#ff4757'};
+                color: white;
+                padding: 15px 20px;
+                border-radius: 8px;
+                z-index: 10000;
+                box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+            `;
+            document.body.appendChild(div);
+            setTimeout(() => div.remove(), 4000);
+        }
+        
+        function mostrarSucesso(elementId) {
+            // Se for ID de elemento, mostra o elemento
+            if (elementId && typeof elementId === 'string' && elementId.includes('Message')) {
+                const elem = document.getElementById(elementId);
+                if (elem) {
+                    elem.style.display = 'block';
+                    setTimeout(() => {
+                        elem.style.display = 'none';
+                    }, 3000);
+                }
+            } else {
+                // Fallback: mostrar aviso verde
+                mostrarAviso('✅ Salvo com sucesso!', 'success');
+            }
+        }
         function initializeFirebase() {
             if (firebaseInitialized) return Promise.resolve();
             
@@ -1176,10 +1209,20 @@ ${duvidaClientes > plantoesFiltrados.length * 0.5 ? '• Alto volume de dúvidas
         }
         
         function savePlantoes() {
+            console.log('💾 Tentando salvar plantões...', plantoes.length, 'plantões');
+            
             if (!db || !firebaseInitialized) {
+                console.warn('⚠️ Firebase não está pronto, usando localStorage');
                 // Fallback para localStorage se Firebase não estiver pronto
-                localStorage.setItem('plantoes', JSON.stringify(plantoes));
-                return;
+                try {
+                    localStorage.setItem('plantoes', JSON.stringify(plantoes));
+                    console.log('✅ Salvos em localStorage');
+                    return;
+                } catch (error) {
+                    console.error('❌ Erro ao salvar em localStorage:', error);
+                    mostrarAviso('❌ Erro ao salvar dados', 'error');
+                    return;
+                }
             }
             
             // Preparar dados para Firebase
@@ -1188,13 +1231,22 @@ ${duvidaClientes > plantoesFiltrados.length * 0.5 ? '• Alto volume de dúvidas
                 plantoesPorId[p.id] = p;
             });
             
+            console.log('📤 Enviando para Firebase...');
             db.ref('plantoes').set(plantoesPorId, (error) => {
                 if (error) {
                     console.error('❌ Erro ao salvar no Firebase:', error);
+                    mostrarAviso('❌ Erro ao salvar: ' + error.message, 'error');
                     // Fallback para localStorage
-                    localStorage.setItem('plantoes', JSON.stringify(plantoes));
+                    try {
+                        localStorage.setItem('plantoes', JSON.stringify(plantoes));
+                        console.log('✅ Salvos em localStorage (fallback)');
+                        mostrarAviso('⚠️ Salvos localmente (sem internet)', 'warning');
+                    } catch (e) {
+                        console.error('❌ Erro no fallback localStorage:', e);
+                    }
                 } else {
                     console.log('✅ Plantões salvos no Firebase!');
+                    mostrarAviso('✅ Salvo com sucesso!', 'success');
                 }
             });
         }
