@@ -475,18 +475,6 @@
                 </div>
                 <div class="plantoes-list" id="listaPlantoesGestor"></div>
                 
-                <!-- Seção de sincronização -->
-                <div style="margin-top: 20px; padding: 15px; background: #f0fff4; border-radius: 8px; border-left: 4px solid #00B140;">
-                    <div style="font-weight: 500; margin-bottom: 10px; font-size: 14px;">🔄 Sincronizar Dados</div>
-                    <p style="font-size: 12px; color: #666; margin-bottom: 10px;">Exporte seus dados para compartilhar entre navegadores ou dispositivos</p>
-                    <div style="display: flex; gap: 10px; flex-wrap: wrap;">
-                        <button class="action-button" style="width: auto; margin-top: 0; background: #00B140; padding: 8px 12px; font-size: 12px;" onclick="exportarDados()">📥 Exportar Dados</button>
-                        <label style="display: flex; align-items: center; gap: 8px; padding: 8px 12px; background: #FFB81C; color: #333; border-radius: 6px; cursor: pointer; font-weight: 500; font-size: 12px; border: none;">
-                            📤 Importar Dados
-                            <input type="file" accept=".json" onchange="importarDados(event)" style="display: none;">
-                        </label>
-                    </div>
-                </div>
                 
                 <button class="logout-button" onclick="logout()">Sair</button>
             </div>
@@ -961,11 +949,25 @@
                     ${renderImagensSecao('sinalizacoes', 'Fotos das sinalizações')}
                     ${obs.melhorias ? `<div class="form-section"><strong>💡 Melhorias:</strong> ${obs.melhorias}</div>` : ''}
                     ${renderImagensSecao('melhorias', 'Fotos das áreas para melhorar')}
+                    
+                    <div class="form-section" style="display: flex; gap: 10px;">
+                        <button class="action-button" style="background: #ff4757; flex: 1;" onclick="deletarPlantao('${id}')">🗑️ Deletar Plantão</button>
+                        <button class="action-button" style="flex: 1;" onclick="voltarParaLista('gestor')">← Voltar</button>
+                    </div>
                 `;
                 
                 document.getElementById('detalhesPlantoesGestor').innerHTML = html;
                 document.getElementById('secaoGestorLista').classList.add('hidden');
                 document.getElementById('secaoGestorVisualizar').classList.remove('hidden');
+            }
+        }
+
+        function deletarPlantao(id) {
+            if (confirm('⚠️ Tem certeza que deseja DELETAR este plantão?\n\nEsta ação não pode ser desfeita!')) {
+                plantoes = plantoes.filter(p => p.id !== id);
+                savePlantoes();
+                mostrarAviso('✅ Plantão deletado!', 'success');
+                voltarParaLista('gestor');
             }
         }
 
@@ -1123,7 +1125,23 @@ ${duvidaClientes > plantoesFiltrados.length * 0.5 ? '• Alto volume de dúvidas
             }
         }
 
-        // ===== FUNÇÕES DE MENSAGEM =====
+        // ===== FUNÇÃO PARA CAPITALIZAR =====
+        function capitalizarPrimeira(text) {
+            if (!text) return '';
+            return text.charAt(0).toUpperCase() + text.slice(1);
+        }
+        
+        function setupCapitalizacao() {
+            // Encontrar todos os textareas e inputs de texto
+            const campos = document.querySelectorAll('textarea, input[type="text"]');
+            campos.forEach(campo => {
+                campo.addEventListener('blur', function() {
+                    if (this.value.trim()) {
+                        this.value = capitalizarPrimeira(this.value.trim());
+                    }
+                });
+            });
+        }
         function mostrarAviso(msg, tipo) {
             const div = document.createElement('div');
             div.textContent = msg;
@@ -1604,6 +1622,9 @@ ${duvidaClientes > plantoesFiltrados.length * 0.5 ? '• Alto volume de dúvidas
             // Fallback para localStorage
             loadPlantoes();
         });
+
+        // Setup de capitalização
+        setupCapitalizacao();
 
         document.getElementById('nomeTarefa').addEventListener('keypress', e => {
             if (e.key === 'Enter') addTask();
