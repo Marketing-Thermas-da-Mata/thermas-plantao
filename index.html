@@ -1135,22 +1135,8 @@ ${duvidaClientes > plantoesFiltrados.length * 0.5 ? '• Alto volume de dúvidas
                 savePlantoes();
             }, SAVE_DELAY);
         }
-        function capitalizarPrimeira(text) {
-            if (!text) return '';
-            return text.charAt(0).toUpperCase() + text.slice(1);
-        }
+        // Capitalização é feita ao salvar, não durante edição
         
-        function setupCapitalizacao() {
-            // Encontrar todos os textareas e inputs de texto
-            const campos = document.querySelectorAll('textarea, input[type="text"]');
-            campos.forEach(campo => {
-                campo.addEventListener('blur', function() {
-                    if (this.value.trim()) {
-                        this.value = capitalizarPrimeira(this.value.trim());
-                    }
-                });
-            });
-        }
         function mostrarAviso(msg, tipo) {
             const div = document.createElement('div');
             div.textContent = msg;
@@ -1215,23 +1201,31 @@ ${duvidaClientes > plantoesFiltrados.length * 0.5 ? '• Alto volume de dúvidas
             });
         }
         
+        let listenerAtivo = false;
+        let ultimosDados = '';
+        
         function setupRealtimeListener() {
-            if (!db) return;
+            if (!db || listenerAtivo) {
+                console.log('ℹ️ Listener já ativo, não cria duplicata');
+                return;
+            }
             
-            console.log('🔄 Configurando listener em tempo real...');
+            listenerAtivo = true;
+            console.log('🔄 Listener em tempo real ativado');
             
             // Listener em tempo real para plantões
             db.ref('plantoes').on('value', (snapshot) => {
                 const data = snapshot.val();
                 if (data) {
-                    const novosDados = Object.values(data);
+                    const novosDados = JSON.stringify(data);
                     
-                    // Só atualiza se houve mudança real
-                    if (JSON.stringify(plantoes) !== JSON.stringify(novosDados)) {
-                        plantoes = novosDados;
+                    // Só atualiza se dados realmente mudaram
+                    if (novosDados !== ultimosDados) {
+                        ultimosDados = novosDados;
+                        plantoes = Object.values(data);
                         console.log('📊 Plantões sincronizados:', plantoes.length);
                         
-                        // Atualizar UI apenas se necessário
+                        // Atualizar UI apenas se dados mudaram
                         if (currentRole === 'gestor') {
                             renderPlantoesList();
                         } else if (currentRole === 'plantonista') {
@@ -1239,39 +1233,40 @@ ${duvidaClientes > plantoesFiltrados.length * 0.5 ? '• Alto volume de dúvidas
                         }
                     }
                 }
-            }, (error) => {
-                console.error('⚠️ Erro no listener:', error);
             });
         }
         
         function savePlantoes() {
             const inicio = performance.now();
-            console.log('💾 Tentando salvar plantões...', plantoes.length, 'plantões');
+            console.log('💾 Salvando plantões...');
             
-            if (!db || !firebaseInitialized) {
-                console.warn('⚠️ Firebase não está pronto, usando localStorage');
-                // Fallback para localStorage se Firebase não estiver pronto
-                try {
-                    localStorage.setItem('plantoes', JSON.stringify(plantoes));
-                    console.log('✅ Salvos em localStorage');
-                    return;
-                } catch (error) {
-                    console.error('❌ Erro ao salvar em localStorage:', error);
-                    mostrarAviso('❌ Erro ao salvar dados', 'error');
-                    return;
-                }
+            // SEMPRE salva em localStorage (rápido)
+            try {
+                localStorage.setItem('plantoes', JSON.stringify(plantoes));
+                console.log('✅ Salvos em localStorage');
+            } catch (error) {
+                console.error('❌ Erro ao salvar em localStorage:', error);
             }
             
-            // Preparar dados para Firebase
+            if (!db || !firebaseInitialized) {
+                console.log('ℹ️ Firebase não disponível, usando apenas localStorage');
+                return;
+            }
+            
+            // Preparar dados SEM IMAGENS para Firebase (muito mais rápido)
             const plantoesPorId = {};
             let tamanhoTotal = 0;
             
             plantoes.forEach(p => {
-                plantoesPorId[p.id] = p;
-                tamanhoTotal += JSON.stringify(p).length;
+                // Copiar plantão SEM as imagens
+                const pSemImagens = { ...p };
+                delete pSemImagens.imagens; // Remove imagens!
+                
+                plantoesPorId[p.id] = pSemImagens;
+                tamanhoTotal += JSON.stringify(pSemImagens).length;
             });
             
-            console.log(`📤 Enviando ${(tamanhoTotal / 1024).toFixed(2)}KB para Firebase...`);
+            console.log(`📤 Enviando ${(tamanhoTotal / 1024).toFixed(2)}KB para Firebase (SEM imagens)...`);
             
             db.ref('plantoes').set(plantoesPorId, (error) => {
                 const fim = performance.now();
@@ -1279,17 +1274,9 @@ ${duvidaClientes > plantoesFiltrados.length * 0.5 ? '• Alto volume de dúvidas
                 
                 if (error) {
                     console.error('❌ Erro ao salvar no Firebase:', error);
-                    mostrarAviso('❌ Erro ao salvar: ' + error.message, 'error');
-                    // Fallback para localStorage
-                    try {
-                        localStorage.setItem('plantoes', JSON.stringify(plantoes));
-                        console.log('✅ Salvos em localStorage (fallback)');
-                        mostrarAviso('⚠️ Salvos localmente (sem internet)', 'warning');
-                    } catch (e) {
-                        console.error('❌ Erro no fallback localStorage:', e);
-                    }
+                    console.log('ℹ️ Dados salvos localmente mesmo assim');
                 } else {
-                    console.log(`✅ Plantões salvos no Firebase! (${tempo}ms)`);
+                    console.log(`✅ Plantões sincronizados no Firebase! (${tempo}ms)`);
                 }
             });
         }
@@ -1435,7 +1422,7 @@ ${duvidaClientes > plantoesFiltrados.length * 0.5 ? '• Alto volume de dúvidas
 
         function savePlantao() {
             const data = document.getElementById('dataGestor').value;
-            const nome = document.getElementById('nomePlantonista').value;
+            const nome = capitalizarTexto(document.getElementById('nomePlantonista').value);
 
             if (!data || !nome) {
                 alert('Preencha data e plantonista!');
@@ -1464,6 +1451,11 @@ ${duvidaClientes > plantoesFiltrados.length * 0.5 ? '• Alto volume de dúvidas
             setTimeout(() => voltarParaLista('gestor'), 1500);
         }
 
+        function capitalizarTexto(texto) {
+            if (!texto) return '';
+            return texto.trim().charAt(0).toUpperCase() + texto.trim().slice(1);
+        }
+
         function savePlantonista() {
             const plantao = plantoes.find(p => p.id === currentPlantaoId);
             if (plantao) {
@@ -1472,12 +1464,12 @@ ${duvidaClientes > plantoesFiltrados.length * 0.5 ? '• Alto volume de dúvidas
                 plantao.observacoes = {
                     parkCrowded: document.getElementById('parkCrowded').value,
                     clientContact: document.getElementById('clientContact').value,
-                    clientContactText: document.getElementById('clientContactText')?.value || '',
+                    clientContactText: capitalizarTexto(document.getElementById('clientContactText')?.value || ''),
                     filas: document.getElementById('filas').value,
-                    filasText: document.getElementById('filasText')?.value || '',
+                    filasText: capitalizarTexto(document.getElementById('filasText')?.value || ''),
                     sinalizacoes: document.getElementById('sinalizacoes').value,
-                    sinalizacoesText: document.getElementById('sinalizacoesText')?.value || '',
-                    melhorias: document.getElementById('melhorias').value
+                    sinalizacoesText: capitalizarTexto(document.getElementById('sinalizacoesText')?.value || ''),
+                    melhorias: capitalizarTexto(document.getElementById('melhorias').value)
                 };
                 // Salvar imagens
                 if (currentPlantaoImages && Object.keys(currentPlantaoImages).length > 0) {
@@ -1692,9 +1684,6 @@ ${duvidaClientes > plantoesFiltrados.length * 0.5 ? '• Alto volume de dúvidas
             // Fallback para localStorage
             loadPlantoes();
         });
-
-        // Setup de capitalização
-        setupCapitalizacao();
 
         document.getElementById('nomeTarefa').addEventListener('keypress', e => {
             if (e.key === 'Enter') addTask();
